@@ -1,0 +1,102 @@
+name: CI
+
+on:
+  schedule:
+    - cron:  '0 0 * * *'
+  issues:
+    types: [opened, edited, milestoned]
+
+jobs:
+  stale-bot-logic:
+    runs-on: ubuntu-latest
+    steps:
+      
+      - name: Mark stale
+        if: github.event_name == 'schedule'
+        uses: actions/github-script@0.2.0
+        with:
+          github-token: ${{github.token}}
+          script: |
+            // Get a list of all open issues
+            const opts = github.issues.listForRepo.endpoint.merge({
+              ...context.repo,
+              state: 'open',
+            });
+            const issues = await github.paginate(opts);
+
+            // Set this value to whatever makes sense for the repo.
+            const elapsedDays = 15
+            const elapsed = elapsedDays * 24 * 60 * 60 * 1000;
+
+            const now = new Date().getTime();
+            for (const issue of issues) {
+              // If an issue was active in the past 15 days, leave it alone...
+              if (now - new Date(issue.updated_at).getTime() < elapsed) {
+                continue;
+              }
+
+              // ...otherwise, mark as stale.
+              github.issues.addLabels({
+                ...context.repo,
+                issue_number: issue.number,
+                labels: ['stale']
+              });
+            }
+            
+      - name: Remove stale
+        if: github.event_name == 'issue_comment'
+        uses: actions/github-script@0.2.0
+        with:
+          github-token: ${{github.token}}
+          script: |
+            // Load issue's labels.
+            const opts = github.issues.listLabelsOnIssue.endpoint.merge({
+              ...context.repo,
+              issue_number: context.issue.number
+            });
+            const labels = await github.paginate(opts);
+
+            // Search for `stale`...
+            for (const label of labels) {
+              if (label.name === 'stale') {
+                // ...and remove it
+                await github.issues.removeLabel({
+                  ...context.repo,
+                  issue_number: context.issue.number,
+                  name: 'stale'
+                })
+                return;
+              }
+            }
+            
+      - name: Close stale
+        if: github.event_name == 'schedule'
+        uses: actions/github-script@0.2.0
+        with:
+          github-token: ${{github.token}}
+          script: |
+            // Load all the `stale` issues
+            const opts = github.issues.listForRepo.endpoint.merge({
+              ...context.repo,
+              state: 'open',
+              labels: ['stale'],
+            });
+            const issues = await github.paginate(opts);
+
+            // Set this value to whatever makes sense for the repo.
+            let elapsedDays = 30;
+            let elapsed = elapsedDays * 24 * 60 * 60 * 1000;
+            let now = new Date().getTime();
+
+            for (const issue of issues) {
+              // If an issue was stale for less than elapsed time, leave it alone.
+              if (now - new Date(issue.updated_at).getTime() < elapsed) {
+                continue;
+              }
+              // Close the stale issue.
+              await github.issues.update({
+                ...context.repo,
+                issue_number: issue.number,
+                state: 'closed'
+              });
+            }
