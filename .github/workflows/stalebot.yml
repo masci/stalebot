@@ -5,6 +5,7 @@ on:
     - cron:  '0 0 * * *'
   issues:
     types: [opened, edited, milestoned, labeled]
+  issue_comment:
 
 jobs:
   stale-bot-logic:
