@@ -98,7 +98,7 @@ jobs:
                 continue;
               }
               // Close the stale issue.
-              console.log('closing issue ' + issue.number);:  
+              console.log('closing issue ' + issue.number); 
               await github.issues.update({
                 ...context.repo,
                 issue_number: issue.number,
