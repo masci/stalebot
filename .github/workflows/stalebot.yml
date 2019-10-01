@@ -94,9 +94,11 @@ jobs:
             for (const issue of issues) {
               // If an issue was stale for less than elapsed time, leave it alone.
               if (now - new Date(issue.updated_at).getTime() < elapsed) {
+                console.log('skip issue ' + issue.number);
                 continue;
               }
               // Close the stale issue.
+              console.log('closing issue ' + issue.number);:  
               await github.issues.update({
                 ...context.repo,
                 issue_number: issue.number,
